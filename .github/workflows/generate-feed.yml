@@ -1,0 +1,36 @@
+name: Generate Google Merchant feed
+
+on:
+  schedule:
+    - cron: "0 3 * * *" # 03:00 UTC dagligen (ca 04-05 svensk tid)
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Generate feed
+        env:
+          SHOPIFY_STORE_DOMAIN: ${{ secrets.SHOPIFY_STORE_DOMAIN }}
+          SHOPIFY_ADMIN_TOKEN: ${{ secrets.SHOPIFY_ADMIN_TOKEN }}
+          SHOPIFY_PRICE_LIST_ID: ${{ secrets.SHOPIFY_PRICE_LIST_ID }}
+        run: node scripts/generate-feed.mjs
+
+      - name: Commit feed if changed
+        run: |
+          git config user.name "feed-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add docs/google_shopping_eu_de.csv
+          git diff --cached --quiet || git commit -m "Update feed $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          git push
